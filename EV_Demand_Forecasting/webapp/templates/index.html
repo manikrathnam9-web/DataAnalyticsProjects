@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EV Demand Forecasting</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --accent: #22d3ee;
+      --accent-2: #34d399;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --border: #334155;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: radial-gradient(circle at top left, #164e63, var(--bg) 45%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 2rem 1.25rem 3rem;
+    }
+
+    header {
+      margin-bottom: 2rem;
+    }
+
+    h1 {
+      margin: 0 0 0.5rem;
+      font-size: 2rem;
+      letter-spacing: -0.02em;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      max-width: 680px;
+      line-height: 1.5;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 1.25rem;
+    }
+
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: rgba(30, 41, 59, 0.9);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.25rem;
+      backdrop-filter: blur(8px);
+    }
+
+    .card h2 {
+      margin: 0 0 1rem;
+      font-size: 1.1rem;
+    }
+
+    .fields {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.85rem;
+    }
+
+    @media (max-width: 640px) {
+      .fields { grid-template-columns: 1fr; }
+    }
+
+    label {
+      display: block;
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-bottom: 0.35rem;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 0.55rem 0.65rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #0b1220;
+      color: var(--text);
+    }
+
+    button {
+      margin-top: 1rem;
+      width: 100%;
+      border: none;
+      border-radius: 10px;
+      padding: 0.85rem 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #042f2e;
+    }
+
+    .metrics {
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .metric {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.65rem 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #0b1220;
+    }
+
+    .metric span:last-child {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .result {
+      margin-top: 1rem;
+      padding: 1rem;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #0b1220;
+      display: none;
+    }
+
+    .result.show { display: block; }
+
+    .result-value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--accent-2);
+    }
+
+    .error {
+      color: #f87171;
+      margin-top: 0.75rem;
+      display: none;
+    }
+
+    .error.show { display: block; }
+
+    .models {
+      margin-top: 1rem;
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>EV Charging Demand Forecaster</h1>
+      <p class="subtitle">
+        Predict how many charging ports will be occupied using an ensemble of
+        Random Forest, Gradient Boosting, and Ridge regression models.
+      </p>
+    </header>
+
+    <div class="grid">
+      <section class="card">
+        <h2>Station &amp; Context Inputs</h2>
+        <form id="predict-form">
+          <div class="fields">
+            <div>
+              <label for="month">Month (1-12)</label>
+              <input id="month" name="month" type="number" min="1" max="12" value="7" required>
+            </div>
+            <div>
+              <label for="day">Day (1-31)</label>
+              <input id="day" name="day" type="number" min="1" max="31" value="15" required>
+            </div>
+            <div>
+              <label for="day_of_week">Day of Week (0=Mon)</label>
+              <input id="day_of_week" name="day_of_week" type="number" min="0" max="6" value="2" required>
+            </div>
+            <div>
+              <label for="hour">Hour (0-23)</label>
+              <input id="hour" name="hour" type="number" min="0" max="23" value="9" required>
+            </div>
+            <div>
+              <label for="minute">Minute</label>
+              <input id="minute" name="minute" type="number" min="0" max="59" value="0" required>
+            </div>
+            <div>
+              <label for="is_weekend">Weekend (0/1)</label>
+              <select id="is_weekend" name="is_weekend">
+                <option value="0" selected>Weekday</option>
+                <option value="1">Weekend</option>
+              </select>
+            </div>
+            <div>
+              <label for="is_peak_hour">Peak Hour (0/1)</label>
+              <select id="is_peak_hour" name="is_peak_hour">
+                <option value="0">Off-peak</option>
+                <option value="1" selected>Peak</option>
+              </select>
+            </div>
+            <div>
+              <label for="has_event">Local Event (0/1)</label>
+              <select id="has_event" name="has_event">
+                <option value="0" selected>No event</option>
+                <option value="1">Event nearby</option>
+              </select>
+            </div>
+            <div>
+              <label for="station_operational">Station Operational (0/1)</label>
+              <select id="station_operational" name="station_operational">
+                <option value="1" selected>Operational</option>
+                <option value="0">Offline</option>
+              </select>
+            </div>
+            <div>
+              <label for="power_output_kw">Power Output (kW)</label>
+              <input id="power_output_kw" name="power_output_kw" type="number" step="0.1" value="19.2" required>
+            </div>
+            <div>
+              <label for="ports_total">Total Ports</label>
+              <input id="ports_total" name="ports_total" type="number" min="1" value="6" required>
+            </div>
+            <div>
+              <label for="ports_in_service">Ports In Service</label>
+              <input id="ports_in_service" name="ports_in_service" type="number" min="0" value="6" required>
+            </div>
+            <div>
+              <label for="available_share">Available Share (0-1)</label>
+              <input id="available_share" name="available_share" type="number" step="0.01" min="0" max="1" value="0.5" required>
+            </div>
+            <div>
+              <label for="temperature_f">Temperature (°F)</label>
+              <input id="temperature_f" name="temperature_f" type="number" step="0.1" value="85" required>
+            </div>
+            <div>
+              <label for="precipitation_mm">Precipitation (mm)</label>
+              <input id="precipitation_mm" name="precipitation_mm" type="number" step="0.1" value="0" required>
+            </div>
+            <div>
+              <label for="traffic_congestion_index">Traffic Congestion (1-10)</label>
+              <input id="traffic_congestion_index" name="traffic_congestion_index" type="number" min="1" max="10" value="6" required>
+            </div>
+            <div>
+              <label for="gas_price_per_gallon">Gas Price ($/gal)</label>
+              <input id="gas_price_per_gallon" name="gas_price_per_gallon" type="number" step="0.01" value="4.75" required>
+            </div>
+          </div>
+          <button type="submit">Predict Demand</button>
+        </form>
+        <div id="error" class="error"></div>
+        <div id="result" class="result">
+          <div>Predicted occupied ports</div>
+          <div id="result-value" class="result-value">-</div>
+        </div>
+      </section>
+
+      <aside class="card">
+        <h2>Model Performance</h2>
+        <div class="metrics">
+          {% if metrics.error %}
+            <p>{{ metrics.error }}</p>
+          {% else %}
+            <div class="metric"><span>MAE</span><span>{{ "%.4f"|format(metrics.mae) if metrics.mae is defined else "N/A" }}</span></div>
+            <div class="metric"><span>RMSE</span><span>{{ "%.4f"|format(metrics.rmse) if metrics.rmse is defined else "N/A" }}</span></div>
+            <div class="metric"><span>R²</span><span>{{ "%.4f"|format(metrics.r2) if metrics.r2 is defined else "N/A" }}</span></div>
+            <div class="metric"><span>Test Rows</span><span>{{ metrics.test_rows if metrics.test_rows is defined else "N/A" }}</span></div>
+          {% endif %}
+        </div>
+        <div class="models">
+          Ensemble stack:
+          <ul>
+            <li>Random Forest Regressor</li>
+            <li>Gradient Boosting Regressor</li>
+            <li>Ridge Regression (scaled)</li>
+            <li>Weighted voting ensemble</li>
+          </ul>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById("predict-form");
+    const resultBox = document.getElementById("result");
+    const resultValue = document.getElementById("result-value");
+    const errorBox = document.getElementById("error");
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      errorBox.classList.remove("show");
+      resultBox.classList.remove("show");
+
+      const payload = {};
+      new FormData(form).forEach((value, key) => {
+        payload[key] = Number(value);
+      });
+
+      try {
+        const response = await fetch("/predict", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+          throw new Error(data.error || "Prediction failed");
+        }
+        resultValue.textContent = data.predicted_demand;
+        resultBox.classList.add("show");
+      } catch (error) {
+        errorBox.textContent = error.message;
+        errorBox.classList.add("show");
+      }
+    });
+  </script>
+</body>
+</html>

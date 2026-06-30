@@ -1,0 +1,13 @@
+{
+  "mae": 0.13329038305015528,
+  "rmse": 0.26389763338447075,
+  "r2": 0.9940443026211069,
+  "train_rows": 52710,
+  "test_rows": 13178,
+  "sample_fraction": 0.05,
+  "models": [
+    "random_forest",
+    "gradient_boosting",
+    "ridge"
+  ]
+}
